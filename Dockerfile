@@ -1,0 +1,30 @@
+FROM ubuntu:14.04
+RUN echo "deb http://archive.ubuntu.com/ubuntu trusty multiverse" >> /etc/apt/sources.list # && dpkg --add-architecture i386
+RUN apt-get update && apt-get install -qy git build-essential clang curl
+
+# Install Chromium's depot_tools.
+ENV DEPOT_TOOLS /usr/bin/depot_tools
+RUN git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git $DEPOT_TOOLS
+ENV PATH $PATH:$DEPOT_TOOLS
+RUN echo -e "\n# Add Chromium's depot_tools to the PATH." >> .bashrc
+RUN echo "export PATH=\"\$PATH:$DEPOT_TOOLS\"" >> .bashrc
+
+RUN git config --global https.postBuffer 1048576000
+
+# Download Chromium sources.
+RUN fetch --nohooks chromium
+
+WORKDIR /
+
+RUN gclient runhooks
+
+WORKDIR src
+
+RUN build/install-build-deps.sh --no-prompt
+
+RUN gn gen out/Release --args="is_debug=false"
+RUN ninja -C out/Release chromedriver
+
+RUN cp out/Release/chromedriver /usr/bin/chromedriver
+
+WORKDIR /
